@@ -443,6 +443,15 @@ testResult_t BenchTime(struct threadArgs* args, ncclDataType_t type, ncclRedOp_t
     }
     if (agg_iters>1) NCCLCHECK(ncclGroupEnd());
   }
+  // test simulation
+  ncclSimInfo_t sim_info = NCCL_SIM_INFO_INITIALIZER;
+  for (int iter = 0; iter < iters; iter++) {
+    NCCLCHECK(ncclGroupStart());
+    for (int aiter = 0; aiter < agg_iters; aiter++) {
+      TESTCHECK(startColl(args, type, op, root, in_place, iter*agg_iters+aiter));
+    }
+    NCCLCHECK(ncclGroupSimulateEnd(&sim_info));
+  }
 
 #if CUDART_VERSION >= 11030
   if (cudaGraphLaunches >= 1) {
@@ -560,6 +569,8 @@ testResult_t BenchTime(struct threadArgs* args, ncclDataType_t type, ncclRedOp_t
   } else {
     PRINT("  %7s  %6.2f  %6.2f  %5s", timeStr, algBw, busBw, "N/A");
   }
+
+  PRINT("\n ***Total simulated time: %f \n", sim_info.estimatedTime);
 
   args->bw[0] += busBw;
   args->bw_count[0]++;
